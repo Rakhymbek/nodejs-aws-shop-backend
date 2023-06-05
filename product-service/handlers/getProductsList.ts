@@ -1,12 +1,11 @@
-import {products} from "../mocks/productsData";
-import { APIGatewayProxyEvent } from 'aws-lambda';
+import { products } from "../mocks/productsData";
+import { APIGatewayProxyEvent } from "aws-lambda";
+import { buildResponse } from "../utils/buildResponse";
 
-exports.handler = async function(event: APIGatewayProxyEvent) {
-    console.log("request: EVENT", JSON.stringify(event));
-
-    return {
-        statusCode: 200,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(products)
-    };
+exports.handler = async function (event: APIGatewayProxyEvent) {
+  try {
+    return buildResponse(200, products);
+  } catch (err: any) {
+    return buildResponse(500, err.message);
+  }
 };
