@@ -17,10 +17,18 @@ export class ProductServiceStack extends cdk.Stack {
     const sharedLambdaProps: NodejsFunctionProps = {
       environment: {},
       runtime: lambda.Runtime.NODEJS_18_X,
+      bundling: {
+        externalModules: ["aws-sdk"],
+      },
     };
 
     const getProductsListLambda = new NodejsFunction(this, "getProductsList", {
       entry: "handlers/getProductsList.ts",
+      ...sharedLambdaProps,
+    });
+
+    const getProductByIdLambda = new NodejsFunction(this, "getProductById", {
+      entry: "handlers/getProductById.ts",
       ...sharedLambdaProps,
     });
 
@@ -29,10 +37,21 @@ export class ProductServiceStack extends cdk.Stack {
       getProductsListLambda
     );
 
+    const getProductByIdIntegration = new HttpLambdaIntegration(
+      "GetProductByIdIntegration",
+      getProductByIdLambda
+    );
+
     api.addRoutes({
       path: "/products",
       methods: [apiGateway.HttpMethod.GET],
       integration: getProductsListIntegration,
+    });
+
+    api.addRoutes({
+      path: "/products/{productId}",
+      methods: [apiGateway.HttpMethod.GET],
+      integration: getProductByIdIntegration,
     });
   }
 }
