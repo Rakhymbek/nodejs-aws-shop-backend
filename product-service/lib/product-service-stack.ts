@@ -13,7 +13,7 @@ export class ProductServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const productsTable = new dynamodb.Table(this as any, "PRODUCTS_TABLE", {
+    const productsTable = new dynamodb.Table(this, "PRODUCTS_TABLE", {
       tableName: "PRODUCTS",
       partitionKey: { name: "id", type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PROVISIONED,
@@ -21,7 +21,7 @@ export class ProductServiceStack extends cdk.Stack {
       writeCapacity: 5,
     });
 
-    const stocksTable = new dynamodb.Table(this as any, "STOCKS_TABLE", {
+    const stocksTable = new dynamodb.Table(this, "STOCKS_TABLE", {
       tableName: "STOCKS",
       partitionKey: { name: "product_id", type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PROVISIONED,
