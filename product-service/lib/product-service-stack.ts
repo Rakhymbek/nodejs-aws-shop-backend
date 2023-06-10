@@ -1,21 +1,41 @@
 import * as cdk from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as apiGateway from "@aws-cdk/aws-apigatewayv2-alpha";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import {
   NodejsFunction,
   NodejsFunctionProps,
 } from "aws-cdk-lib/aws-lambda-nodejs";
 import { HttpLambdaIntegration } from "@aws-cdk/aws-apigatewayv2-integrations-alpha";
-import * as apiGateway from "@aws-cdk/aws-apigatewayv2-alpha";
 import { Construct } from "constructs";
 
 export class ProductServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    const productsTable = new dynamodb.Table(this as any, "PRODUCTS_TABLE", {
+      tableName: "PRODUCTS_TABLE",
+      partitionKey: { name: "id", type: dynamodb.AttributeType.NUMBER },
+      billingMode: dynamodb.BillingMode.PROVISIONED,
+      readCapacity: 5,
+      writeCapacity: 5,
+    });
+
+    const stocksTable = new dynamodb.Table(this as any, "STOCKS_TABLE", {
+      tableName: "STOCKS_TABLE",
+      partitionKey: { name: "product_id", type: dynamodb.AttributeType.NUMBER },
+      billingMode: dynamodb.BillingMode.PROVISIONED,
+      readCapacity: 5,
+      writeCapacity: 5,
+    });
+
     const api = new apiGateway.HttpApi(this, "ProductsHttpApi");
 
     const sharedLambdaProps: NodejsFunctionProps = {
-      environment: {},
+      environment: {
+        PRODUCTS_TABLE_NAME: productsTable.tableName,
+        STOCKS_TABLE_NAME: stocksTable.tableName,
+      },
       runtime: lambda.Runtime.NODEJS_18_X,
       bundling: {
         externalModules: ["aws-sdk"],
@@ -41,6 +61,12 @@ export class ProductServiceStack extends cdk.Stack {
       "GetProductByIdIntegration",
       getProductByIdLambda
     );
+
+    productsTable.grantReadWriteData(getProductsListLambda);
+    productsTable.grantReadWriteData(getProductByIdLambda);
+
+    stocksTable.grantReadWriteData(getProductsListLambda);
+    stocksTable.grantReadWriteData(getProductByIdLambda);
 
     api.addRoutes({
       path: "/products",
