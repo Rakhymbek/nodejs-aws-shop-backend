@@ -2,7 +2,7 @@ import { IProduct } from "../models/product";
 
 export const buildResponse = (
   statusCode: number,
-  body: IProduct[] | IProduct | string
+  body: IProduct[] | IProduct | string | unknown
 ) => {
   return {
     statusCode,

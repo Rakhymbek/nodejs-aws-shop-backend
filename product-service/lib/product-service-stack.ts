@@ -14,16 +14,16 @@ export class ProductServiceStack extends cdk.Stack {
     super(scope, id, props);
 
     const productsTable = new dynamodb.Table(this as any, "PRODUCTS_TABLE", {
-      tableName: "PRODUCTS_TABLE",
-      partitionKey: { name: "id", type: dynamodb.AttributeType.NUMBER },
+      tableName: "PRODUCTS",
+      partitionKey: { name: "id", type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PROVISIONED,
       readCapacity: 5,
       writeCapacity: 5,
     });
 
     const stocksTable = new dynamodb.Table(this as any, "STOCKS_TABLE", {
-      tableName: "STOCKS_TABLE",
-      partitionKey: { name: "product_id", type: dynamodb.AttributeType.NUMBER },
+      tableName: "STOCKS",
+      partitionKey: { name: "product_id", type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PROVISIONED,
       readCapacity: 5,
       writeCapacity: 5,
@@ -36,8 +36,9 @@ export class ProductServiceStack extends cdk.Stack {
         PRODUCTS_TABLE_NAME: productsTable.tableName,
         STOCKS_TABLE_NAME: stocksTable.tableName,
       },
-      runtime: lambda.Runtime.NODEJS_18_X,
+      runtime: lambda.Runtime.NODEJS_16_X,
       bundling: {
+        minify: true,
         externalModules: ["aws-sdk"],
       },
     };
