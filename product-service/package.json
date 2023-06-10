@@ -14,6 +14,7 @@
     "@types/aws-lambda": "8.10.115",
     "@types/jest": "29.5.1",
     "@types/node": "20.1.7",
+    "@types/uuid": "^9.0.2",
     "aws-cdk": "2.82.0",
     "aws-sdk": "2.1395.0",
     "esbuild": "0.18.0",
@@ -29,6 +30,8 @@
     "@aws-cdk/aws-lambda": "1.203.0",
     "aws-cdk-lib": "2.82.0",
     "constructs": "10.0.0",
-    "source-map-support": "0.5.21"
+    "source-map-support": "0.5.21",
+    "uuid": "^9.0.0",
+    "yup": "^1.2.0"
   }
 }

@@ -1,4 +1,5 @@
 import { IProduct } from "../models/product";
+import * as yup from "yup";
 
 // mockData from FE-app
 
@@ -46,3 +47,13 @@ export const products: IProduct[] = [
     count: 8,
   },
 ];
+
+export const productSchema = yup.object({
+  title: yup.string().required(),
+  description: yup.string().required(),
+  price: yup.number().positive().integer().required(),
+});
+
+export const stockSchema = yup.object({
+  count: yup.number().integer().min(0).required(),
+});

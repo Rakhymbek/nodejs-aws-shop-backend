@@ -53,6 +53,11 @@ export class ProductServiceStack extends cdk.Stack {
       ...sharedLambdaProps,
     });
 
+    const createProductLambda = new NodejsFunction(this, "createProduct", {
+      entry: "handlers/createProduct.ts",
+      ...sharedLambdaProps,
+    });
+
     const getProductsListIntegration = new HttpLambdaIntegration(
       "GetProductsListIntegration",
       getProductsListLambda
@@ -63,11 +68,18 @@ export class ProductServiceStack extends cdk.Stack {
       getProductByIdLambda
     );
 
+    const createProductIntegration = new HttpLambdaIntegration(
+      "CreateProductIntegration",
+      createProductLambda
+    );
+
     productsTable.grantReadWriteData(getProductsListLambda);
     productsTable.grantReadWriteData(getProductByIdLambda);
+    productsTable.grantReadWriteData(createProductLambda);
 
     stocksTable.grantReadWriteData(getProductsListLambda);
     stocksTable.grantReadWriteData(getProductByIdLambda);
+    stocksTable.grantReadWriteData(createProductLambda);
 
     api.addRoutes({
       path: "/products",
@@ -79,6 +91,12 @@ export class ProductServiceStack extends cdk.Stack {
       path: "/products/{productId}",
       methods: [apiGateway.HttpMethod.GET],
       integration: getProductByIdIntegration,
+    });
+
+    api.addRoutes({
+      path: "/products",
+      methods: [apiGateway.HttpMethod.POST],
+      integration: createProductIntegration,
     });
   }
 }
