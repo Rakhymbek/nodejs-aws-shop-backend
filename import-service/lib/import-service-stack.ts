@@ -9,14 +9,17 @@ import {
 import { HttpLambdaIntegration } from "@aws-cdk/aws-apigatewayv2-integrations-alpha";
 import { Construct } from "constructs";
 
+import * as dotenv from "dotenv";
+dotenv.config();
+
 export class ImportServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const bucket = new s3.Bucket.fromBucketName(
+    const bucket = s3.Bucket.fromBucketName(
       this,
-      "ProductsBucket",
-      process.env.BUCKET_NAME
+      "ImportProductsBucket",
+      process.env.BUCKET_NAME as string
     );
 
     const api = new apiGw.HttpApi(this, "ImportServiceHttpApi");
@@ -34,9 +37,9 @@ export class ImportServiceStack extends cdk.Stack {
 
     const importProductsFileLambda = new NodejsFunction(
       this,
-      "getProductsList",
+      "importProductsFile",
       {
-        entry: "handlers/importProductsFile",
+        entry: "handlers/importProductsFile.ts",
         ...sharedLambdaProps,
       }
     );
