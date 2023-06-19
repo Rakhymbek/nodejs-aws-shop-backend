@@ -1,4 +1,5 @@
 import * as cdk from "aws-cdk-lib";
+import { aws_s3_notifications } from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as apiGw from "@aws-cdk/aws-apigatewayv2-alpha";
 import * as s3 from "aws-cdk-lib/aws-s3";
@@ -10,6 +11,8 @@ import { HttpLambdaIntegration } from "@aws-cdk/aws-apigatewayv2-integrations-al
 import { Construct } from "constructs";
 
 import * as dotenv from "dotenv";
+import { Effect, PolicyStatement } from "aws-cdk-lib/aws-iam";
+
 dotenv.config();
 
 export class ImportServiceStack extends cdk.Stack {
@@ -35,11 +38,31 @@ export class ImportServiceStack extends cdk.Stack {
       },
     };
 
+    const importFileParsePolicy = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:ListBucket",
+      ],
+      resources: [bucket.bucketArn, `${bucket.bucketArn}/*`],
+    });
+
     const importProductsFileLambda = new NodejsFunction(
       this,
       "importProductsFile",
       {
         entry: "handlers/importProductsFile.ts",
+        ...sharedLambdaProps,
+      }
+    );
+
+    const importFileParserLambda = new NodejsFunction(
+      this,
+      "importFileParser",
+      {
+        entry: "handlers/importFileParser.ts",
         ...sharedLambdaProps,
       }
     );
@@ -50,6 +73,14 @@ export class ImportServiceStack extends cdk.Stack {
     );
 
     bucket.grantReadWrite(importProductsFileLambda);
+
+    bucket.addEventNotification(
+      s3.EventType.OBJECT_CREATED,
+      new aws_s3_notifications.LambdaDestination(importFileParserLambda),
+      { prefix: "uploaded/" }
+    );
+
+    importFileParserLambda.addToRolePolicy(importFileParsePolicy);
 
     api.addRoutes({
       path: "/import",

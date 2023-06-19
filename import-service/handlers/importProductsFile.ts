@@ -13,7 +13,7 @@ exports.handler = async function (event: APIGatewayProxyEvent) {
 
   const bucketParams = {
     Bucket: process.env.BUCKET_NAME,
-    Key: "uploaded/${fileName}",
+    Key: `uploaded/${fileName}`,
     Expires: 60,
     ContentType: "text/csv",
   };
