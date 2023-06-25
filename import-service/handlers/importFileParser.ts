@@ -4,10 +4,9 @@ import csvParser from "csv-parser";
 import { Transform, TransformCallback } from "stream";
 
 const s3Bucket = new AWS.S3({ region: "us-east-1" });
+const sqs = new AWS.SQS();
 
 exports.handler = async function (event: S3Event): Promise<void> {
-  console.log("### importFileParser:", JSON.stringify(event));
-
   for (const record of event.Records) {
     const s3ReadableStream = s3Bucket
       .getObject({
@@ -16,11 +15,25 @@ exports.handler = async function (event: S3Event): Promise<void> {
       })
       .createReadStream();
 
-    console.log(`File is processing from: ${record.s3.object.key}`);
+    // console.log(`File is processing from: ${record.s3.object.key}`);
 
     await processReadableStream(s3ReadableStream, record);
   }
 };
+
+function sendMessageToSQS(data: any) {
+  const params = {
+    QueueUrl: process.env.QUEUE_URL as string,
+    MessageBody: JSON.stringify(data),
+  };
+  sqs.sendMessage(params, (err, data) => {
+    if (err) {
+      console.error("Error while sending the message", err);
+    } else {
+      // console.log("Message sent successfully", data.MessageId);
+    }
+  });
+}
 
 async function processReadableStream(
   stream: NodeJS.ReadableStream,
@@ -34,7 +47,7 @@ async function processReadableStream(
         encoding: BufferEncoding,
         callback: TransformCallback
       ) {
-        console.log("csv file is parsing: ", JSON.stringify(chunk));
+        sendMessageToSQS(chunk);
         callback();
       },
     });
@@ -43,6 +56,7 @@ async function processReadableStream(
       .pipe(csvParser())
       .pipe(transformStream)
       .on("finish", async () => {
+        // I want to see at least this log to be sure!
         console.log(`${record.s3.object.key} has finished to process`);
 
         const bucketName = record.s3.bucket.name;
