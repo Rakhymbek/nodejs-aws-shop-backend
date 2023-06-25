@@ -2,6 +2,9 @@ import * as cdk from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as apiGateway from "@aws-cdk/aws-apigatewayv2-alpha";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as sqs from "aws-cdk-lib/aws-sqs";
+import * as lambdaEventSources from "aws-cdk-lib/aws-lambda-event-sources";
+import * as iam from "aws-cdk-lib/aws-iam";
 import {
   NodejsFunction,
   NodejsFunctionProps,
@@ -27,6 +30,11 @@ export class ProductServiceStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PROVISIONED,
       readCapacity: 5,
       writeCapacity: 5,
+    });
+
+    const catalogItemsQueue = new sqs.Queue(this, "CatalogItemsQueue", {
+      queueName: "catalog-items-queue",
+      visibilityTimeout: cdk.Duration.seconds(15),
     });
 
     const api = new apiGateway.HttpApi(this, "ProductsHttpApi");
@@ -58,6 +66,16 @@ export class ProductServiceStack extends cdk.Stack {
       ...sharedLambdaProps,
     });
 
+    const catalogBatchProcessLambda = new NodejsFunction(
+      this,
+      "catalogBatchProcess",
+      {
+        entry: "handlers/catalogBatchProcess.ts",
+        ...sharedLambdaProps,
+        timeout: cdk.Duration.seconds(10),
+      }
+    );
+
     const getProductsListIntegration = new HttpLambdaIntegration(
       "GetProductsListIntegration",
       getProductsListLambda
@@ -80,6 +98,15 @@ export class ProductServiceStack extends cdk.Stack {
     stocksTable.grantReadWriteData(getProductsListLambda);
     stocksTable.grantReadWriteData(getProductByIdLambda);
     stocksTable.grantReadWriteData(createProductLambda);
+
+    catalogItemsQueue.grantConsumeMessages(catalogBatchProcessLambda);
+
+    catalogBatchProcessLambda.role?.addManagedPolicy(
+      iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonDynamoDBFullAccess")
+    );
+    catalogBatchProcessLambda.addEventSource(
+      new lambdaEventSources.SqsEventSource(catalogItemsQueue, { batchSize: 5 })
+    );
 
     api.addRoutes({
       path: "/products",
