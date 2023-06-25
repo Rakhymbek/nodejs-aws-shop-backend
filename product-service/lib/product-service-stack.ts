@@ -3,6 +3,8 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as apiGateway from "@aws-cdk/aws-apigatewayv2-alpha";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as sqs from "aws-cdk-lib/aws-sqs";
+import * as sns from "aws-cdk-lib/aws-sns";
+import * as subscriptions from "aws-cdk-lib/aws-sns-subscriptions";
 import * as lambdaEventSources from "aws-cdk-lib/aws-lambda-event-sources";
 import * as iam from "aws-cdk-lib/aws-iam";
 import {
@@ -11,6 +13,8 @@ import {
 } from "aws-cdk-lib/aws-lambda-nodejs";
 import { HttpLambdaIntegration } from "@aws-cdk/aws-apigatewayv2-integrations-alpha";
 import { Construct } from "constructs";
+import * as dotenv from "dotenv";
+dotenv.config();
 
 export class ProductServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -34,8 +38,19 @@ export class ProductServiceStack extends cdk.Stack {
 
     const catalogItemsQueue = new sqs.Queue(this, "CatalogItemsQueue", {
       queueName: "catalog-items-queue",
-      visibilityTimeout: cdk.Duration.seconds(15),
+      visibilityTimeout: cdk.Duration.seconds(10),
     });
+
+    const createProductTopic = new sns.Topic(this, "CreateProductTopic", {
+      topicName: "PRODUCT-TOPIC",
+      displayName: "product-creation-topic",
+    });
+
+    createProductTopic.addSubscription(
+      new subscriptions.EmailSubscription(
+        process.env.SUBSCRIPTION_EMAIL as string
+      )
+    );
 
     const api = new apiGateway.HttpApi(this, "ProductsHttpApi");
 
@@ -43,6 +58,7 @@ export class ProductServiceStack extends cdk.Stack {
       environment: {
         PRODUCTS_TABLE_NAME: productsTable.tableName,
         STOCKS_TABLE_NAME: stocksTable.tableName,
+        SNS_TOPIC_ARN: createProductTopic.topicArn,
       },
       runtime: lambda.Runtime.NODEJS_16_X,
       bundling: {
@@ -72,7 +88,7 @@ export class ProductServiceStack extends cdk.Stack {
       {
         entry: "handlers/catalogBatchProcess.ts",
         ...sharedLambdaProps,
-        timeout: cdk.Duration.seconds(10),
+        timeout: cdk.Duration.seconds(5),
       }
     );
 
@@ -107,6 +123,8 @@ export class ProductServiceStack extends cdk.Stack {
     catalogBatchProcessLambda.addEventSource(
       new lambdaEventSources.SqsEventSource(catalogItemsQueue, { batchSize: 5 })
     );
+
+    createProductTopic.grantPublish(catalogBatchProcessLambda);
 
     api.addRoutes({
       path: "/products",

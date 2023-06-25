@@ -1,17 +1,35 @@
+import * as AWS from "aws-sdk";
 import { SQSEvent } from "aws-lambda";
 import { buildResponse } from "../../import-service/utils/buildResponse";
 import { createProduct } from "../utils/createProduct";
 
-exports.handler = async function (event: SQSEvent) {
-  console.log("### catalogBatchProcess:", JSON.stringify(event, null, 2));
+const sns = new AWS.SNS();
 
+exports.handler = async function (event: SQSEvent) {
   try {
+    const newProducts = [];
     for (const record of event.Records) {
-      const body = JSON.parse(record.body);
-      const { count, ...productData } = body;
-      const newProduct = await createProduct(productData, count);
-      console.log("Product created:", newProduct);
+      try {
+        const body = JSON.parse(record.body);
+        const { count, ...productData } = body;
+        const newProduct = await createProduct(productData, count);
+        console.log("Product created:", newProduct);
+        newProducts.push(newProduct);
+      } catch (e: any) {
+        console.error("Error while processing record:", e);
+      }
     }
+
+    const SNSParams = {
+      Message: `The new products have been created.\r\n${JSON.stringify(
+        newProducts
+      )}`,
+      Subject: "Creation of batch products is completed",
+      TopicArn: process.env.SNS_TOPIC_ARN,
+    };
+
+    await sns.publish(SNSParams).promise();
+
     return buildResponse(200, "message is delivered");
   } catch (err: any) {
     return buildResponse(500, err.message);
