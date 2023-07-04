@@ -14,7 +14,7 @@ export class AuthorizationServiceStack extends cdk.Stack {
     super(scope, id, props);
 
     const sharedLambdaProps: NodejsFunctionProps = {
-      environment: { rakhymbek: process.env.rakhymbek },
+      environment: { rakhymbek: process.env.rakhymbek as string },
       runtime: lambda.Runtime.NODEJS_16_X,
       bundling: {
         minify: true,
