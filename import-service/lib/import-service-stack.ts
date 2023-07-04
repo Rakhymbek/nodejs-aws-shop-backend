@@ -36,7 +36,13 @@ export class ImportServiceStack extends cdk.Stack {
       process.env.QUEUE_ARN as string
     );
 
-    const api = new apiGw.HttpApi(this, "ImportServiceHttpApi");
+    const api = new apiGw.HttpApi(this, "ImportServiceHttpApi", {
+      corsPreflight: {
+        allowHeaders: ["Authorization"],
+        allowMethods: [apiGw.CorsHttpMethod.GET, apiGw.CorsHttpMethod.OPTIONS],
+        allowOrigins: ["*"],
+      },
+    });
 
     const sharedLambdaProps: NodejsFunctionProps = {
       environment: {

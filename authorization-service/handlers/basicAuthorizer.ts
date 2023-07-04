@@ -13,7 +13,7 @@ const generatePolicy = (
   return {
     principalId,
     policyDocument: {
-      Version: "2012-10-07",
+      Version: "2012-10-17",
       Statement: [
         { Action: "execute-api:Invoke", Effect: effect, Resource: resource },
       ],
@@ -26,13 +26,15 @@ exports.handler = async function (
   _context,
   callback: Callback<CustomAuthorizerResult>
 ) {
-  if (event.type !== "TOKEN") {
-    callback("Unauthorized");
-    return;
-  }
+  console.log("Event:", JSON.stringify(event));
+  // if (event.type !== "REQUEST") {
+  //   console.log("Event type is not REQUEST");
+  //   callback("Unauthorized");
+  //   return;
+  // }
   try {
     const authorizationToken = event.authorizationToken;
-    if (typeof authorizationToken !== "string") {
+    if (typeof authorizationToken !== "string" || !authorizationToken) {
       callback("Unauthorized");
       return;
     }
@@ -45,11 +47,11 @@ exports.handler = async function (
       !storedUserPassword || storedUserPassword !== password ? "Deny" : "Allow";
 
     if (effect === "Deny") {
-      callback(null, generatePolicy(username, effect, "*"));
+      callback(null, generatePolicy("user", effect, "*"));
       return;
     }
 
-    return callback(null, generatePolicy(username, "Allow", event.methodArn));
+    return callback(null, generatePolicy("user", "Allow", event.methodArn));
   } catch (err: any) {
     console.error("Error occurred during authorization: ", err);
     callback("Unauthorized");
