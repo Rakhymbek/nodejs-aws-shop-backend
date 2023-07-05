@@ -13,6 +13,10 @@ import { Construct } from "constructs";
 
 import * as dotenv from "dotenv";
 import { Effect, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import {
+  HttpLambdaAuthorizer,
+  HttpLambdaResponseType,
+} from "@aws-cdk/aws-apigatewayv2-authorizers-alpha";
 
 dotenv.config();
 
@@ -32,7 +36,13 @@ export class ImportServiceStack extends cdk.Stack {
       process.env.QUEUE_ARN as string
     );
 
-    const api = new apiGw.HttpApi(this, "ImportServiceHttpApi");
+    const api = new apiGw.HttpApi(this, "ImportServiceHttpApi", {
+      corsPreflight: {
+        allowHeaders: ["Authorization"],
+        allowMethods: [apiGw.CorsHttpMethod.GET, apiGw.CorsHttpMethod.OPTIONS],
+        allowOrigins: ["*"],
+      },
+    });
 
     const sharedLambdaProps: NodejsFunctionProps = {
       environment: {
@@ -75,6 +85,20 @@ export class ImportServiceStack extends cdk.Stack {
       }
     );
 
+    const basicAuthorizerLambda = lambda.Function.fromFunctionArn(
+      this,
+      "BasicAuthorizer",
+      process.env.BASIC_AUTH_LAMBDA_ARN as string
+    );
+
+    const lambdaAuthorizer = new HttpLambdaAuthorizer(
+      "BasicAuthorizer",
+      basicAuthorizerLambda,
+      {
+        responseTypes: [HttpLambdaResponseType.IAM],
+      }
+    );
+
     const importProductsFileIntegration = new HttpLambdaIntegration(
       "ImportProductsFileIntegration",
       importProductsFileLambda
@@ -96,6 +120,7 @@ export class ImportServiceStack extends cdk.Stack {
       path: "/import",
       methods: [apiGw.HttpMethod.GET],
       integration: importProductsFileIntegration,
+      authorizer: lambdaAuthorizer,
     });
   }
 }

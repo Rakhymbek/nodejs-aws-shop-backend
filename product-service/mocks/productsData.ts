@@ -2,7 +2,6 @@ import { IProduct } from "../models/product";
 import * as yup from "yup";
 
 // mockData from FE-app
-
 export const products: IProduct[] = [
   {
     description: "Short Product Description1",
