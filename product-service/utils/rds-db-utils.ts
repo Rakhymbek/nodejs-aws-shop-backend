@@ -6,4 +6,12 @@ async function getAllProducts() {
     .leftJoin("stocks", "products.id", "stocks.product_id");
 }
 
-export { getAllProducts };
+async function getProductById(productId: string) {
+  return PostgresDB.select("products.*", "stocks.count")
+    .from("products")
+    .leftJoin("stocks", "products.id", "stocks.product_id")
+    .where({ "products.id": productId })
+    .first();
+}
+
+export { getAllProducts, getProductById };

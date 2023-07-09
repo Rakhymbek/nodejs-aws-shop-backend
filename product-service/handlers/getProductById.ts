@@ -1,8 +1,6 @@
 import { APIGatewayProxyEvent } from "aws-lambda";
 import { buildResponse } from "../utils/buildResponse";
-import * as AWS from "aws-sdk";
-
-const dynamoDB = new AWS.DynamoDB.DocumentClient();
+import { getProductById } from "../utils/rds-db-utils";
 
 exports.handler = async function (event: APIGatewayProxyEvent) {
   console.log("### getProductByIdEvent:", JSON.stringify(event, null, 2));
@@ -10,33 +8,17 @@ exports.handler = async function (event: APIGatewayProxyEvent) {
   try {
     const productId = event.pathParameters?.productId;
 
-    const productsParams = {
-      TableName: process.env.PRODUCTS_TABLE_NAME as string,
-      Key: {
-        id: productId,
-      },
-    };
+    if (!productId) {
+      return buildResponse(400, "ProductId is required");
+    }
 
-    const stocksParams = {
-      TableName: process.env.STOCKS_TABLE_NAME as string,
-      Key: {
-        product_id: productId,
-      },
-    };
-
-    const product = await dynamoDB.get(productsParams).promise();
-    const stock = await dynamoDB.get(stocksParams).promise();
+    const product = await getProductById(productId as string);
 
     if (!product) {
       return buildResponse(404, "Product not found");
     }
 
-    const joinedProduct = {
-      ...product.Item,
-      count: stock.Item ? stock.Item.count : 0,
-    };
-
-    return buildResponse(200, joinedProduct);
+    return buildResponse(200, product);
   } catch (err: any) {
     return buildResponse(500, err.message);
   }
