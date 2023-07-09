@@ -1,7 +1,8 @@
 import * as AWS from "aws-sdk";
 import { SQSEvent } from "aws-lambda";
 import { buildResponse } from "../../import-service/utils/buildResponse";
-import { createProduct } from "../utils/createProduct";
+import { createProduct } from "../utils/rds-db-utils";
+import { IProduct } from "../models/product";
 
 const sns = new AWS.SNS();
 
@@ -12,7 +13,7 @@ exports.handler = async function (event: SQSEvent) {
       try {
         const body = JSON.parse(record.body);
         const { count, ...productData } = body;
-        const newProduct = await createProduct(productData, count);
+        const newProduct = await createProduct(productData as IProduct, count);
         console.log("Product created:", newProduct);
         newProducts.push(newProduct);
       } catch (e: any) {

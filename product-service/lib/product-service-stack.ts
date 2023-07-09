@@ -137,6 +137,7 @@ export class ProductServiceStack extends cdk.Stack {
       this,
       "catalogBatchProcess",
       {
+        role: lambdaRole,
         entry: "handlers/catalogBatchProcess.ts",
         ...sharedLambdaProps,
         timeout: cdk.Duration.seconds(5),
