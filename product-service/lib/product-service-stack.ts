@@ -52,32 +52,83 @@ export class ProductServiceStack extends cdk.Stack {
       )
     );
 
-    const api = new apiGateway.HttpApi(this, "ProductsHttpApi");
+    const api = new apiGateway.HttpApi(this, "ProductsHttpApi", {
+      corsPreflight: {
+        allowHeaders: ["*"],
+        allowMethods: [apiGateway.CorsHttpMethod.ANY],
+        allowOrigins: ["*"],
+      },
+    });
+
+    const lambdaRole = new iam.Role(this, "LambdaRole", {
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+    });
+
+    const statement = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:CreateNetworkInterface",
+        "ec2:DeleteNetworkInterface",
+        "ec2:DescribeInstances",
+        "ec2:AttachNetworkInterface",
+      ],
+      resources: ["*"],
+    });
+
+    lambdaRole.addToPolicy(statement);
+
+    lambdaRole.addManagedPolicy(
+      iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonRDSFullAccess")
+    );
+    lambdaRole.addManagedPolicy(
+      iam.ManagedPolicy.fromAwsManagedPolicyName(
+        "service-role/AWSLambdaBasicExecutionRole"
+      )
+    );
 
     const sharedLambdaProps: NodejsFunctionProps = {
       environment: {
         PRODUCTS_TABLE_NAME: productsTable.tableName,
         STOCKS_TABLE_NAME: stocksTable.tableName,
         SNS_TOPIC_ARN: createProductTopic.topicArn,
+        PG_HOST: process.env.PG_HOST as string,
+        PG_PORT: process.env.PG_PORT as string,
+        PG_DATABASE: process.env.PG_DATABASE as string,
+        PG_USERNAME: process.env.PG_USERNAME as string,
+        PG_PASSWORD: process.env.PG_PASSWORD as string,
       },
       runtime: lambda.Runtime.NODEJS_16_X,
       bundling: {
         minify: true,
-        externalModules: ["aws-sdk"],
+        externalModules: [
+          "aws-sdk",
+          "pg-native",
+          "mysql",
+          "sqlite3",
+          "tedious",
+          "better-sqlite3",
+          "mysql2",
+          "pg-query-stream",
+          "oracledb",
+        ],
       },
     };
 
     const getProductsListLambda = new NodejsFunction(this, "getProductsList", {
+      role: lambdaRole,
       entry: "handlers/getProductsList.ts",
       ...sharedLambdaProps,
     });
 
     const getProductByIdLambda = new NodejsFunction(this, "getProductById", {
+      role: lambdaRole,
       entry: "handlers/getProductById.ts",
       ...sharedLambdaProps,
     });
 
     const createProductLambda = new NodejsFunction(this, "createProduct", {
+      role: lambdaRole,
       entry: "handlers/createProduct.ts",
       ...sharedLambdaProps,
     });
