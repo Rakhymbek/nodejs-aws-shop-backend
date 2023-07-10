@@ -1,7 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as apiGateway from "@aws-cdk/aws-apigatewayv2-alpha";
-import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as sqs from "aws-cdk-lib/aws-sqs";
 import * as sns from "aws-cdk-lib/aws-sns";
 import * as subscriptions from "aws-cdk-lib/aws-sns-subscriptions";
@@ -20,25 +19,9 @@ export class ProductServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const productsTable = new dynamodb.Table(this, "PRODUCTS_TABLE", {
-      tableName: "PRODUCTS",
-      partitionKey: { name: "id", type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PROVISIONED,
-      readCapacity: 5,
-      writeCapacity: 5,
-    });
-
-    const stocksTable = new dynamodb.Table(this, "STOCKS_TABLE", {
-      tableName: "STOCKS",
-      partitionKey: { name: "product_id", type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PROVISIONED,
-      readCapacity: 5,
-      writeCapacity: 5,
-    });
-
     const catalogItemsQueue = new sqs.Queue(this, "CatalogItemsQueue", {
       queueName: "catalog-items-queue",
-      visibilityTimeout: cdk.Duration.seconds(10),
+      visibilityTimeout: cdk.Duration.seconds(30),
     });
 
     const createProductTopic = new sns.Topic(this, "CreateProductTopic", {
@@ -76,6 +59,18 @@ export class ProductServiceStack extends cdk.Stack {
       resources: ["*"],
     });
 
+    const sqsStatement = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes",
+      ],
+      resources: [catalogItemsQueue.queueArn],
+    });
+
+    lambdaRole.addToPolicy(sqsStatement);
+
     lambdaRole.addToPolicy(statement);
 
     lambdaRole.addManagedPolicy(
@@ -89,8 +84,6 @@ export class ProductServiceStack extends cdk.Stack {
 
     const sharedLambdaProps: NodejsFunctionProps = {
       environment: {
-        PRODUCTS_TABLE_NAME: productsTable.tableName,
-        STOCKS_TABLE_NAME: stocksTable.tableName,
         SNS_TOPIC_ARN: createProductTopic.topicArn,
         PG_HOST: process.env.PG_HOST as string,
         PG_PORT: process.env.PG_PORT as string,
@@ -137,10 +130,11 @@ export class ProductServiceStack extends cdk.Stack {
       this,
       "catalogBatchProcess",
       {
+        functionName: "catalogBatchProcessLambda",
         role: lambdaRole,
         entry: "handlers/catalogBatchProcess.ts",
         ...sharedLambdaProps,
-        timeout: cdk.Duration.seconds(5),
+        timeout: cdk.Duration.seconds(30),
       }
     );
 
@@ -159,19 +153,8 @@ export class ProductServiceStack extends cdk.Stack {
       createProductLambda
     );
 
-    productsTable.grantReadWriteData(getProductsListLambda);
-    productsTable.grantReadWriteData(getProductByIdLambda);
-    productsTable.grantReadWriteData(createProductLambda);
-
-    stocksTable.grantReadWriteData(getProductsListLambda);
-    stocksTable.grantReadWriteData(getProductByIdLambda);
-    stocksTable.grantReadWriteData(createProductLambda);
-
     catalogItemsQueue.grantConsumeMessages(catalogBatchProcessLambda);
 
-    catalogBatchProcessLambda.role?.addManagedPolicy(
-      iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonDynamoDBFullAccess")
-    );
     catalogBatchProcessLambda.addEventSource(
       new lambdaEventSources.SqsEventSource(catalogItemsQueue, { batchSize: 5 })
     );

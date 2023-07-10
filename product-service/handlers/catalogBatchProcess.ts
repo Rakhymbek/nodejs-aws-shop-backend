@@ -1,19 +1,23 @@
 import * as AWS from "aws-sdk";
 import { SQSEvent } from "aws-lambda";
 import { buildResponse } from "../../import-service/utils/buildResponse";
-import { createProduct } from "../utils/rds-db-utils";
 import { IProduct } from "../models/product";
+import { createProductInTable } from "../utils/rds-db-utils";
 
 const sns = new AWS.SNS();
 
 exports.handler = async function (event: SQSEvent) {
+  console.log("### catalogBatchProcess:", event);
   try {
     const newProducts = [];
     for (const record of event.Records) {
       try {
         const body = JSON.parse(record.body);
         const { count, ...productData } = body;
-        const newProduct = await createProduct(productData as IProduct, count);
+        const newProduct = await createProductInTable(
+          productData as IProduct,
+          count
+        );
         console.log("Product created:", newProduct);
         newProducts.push(newProduct);
       } catch (e: any) {
@@ -30,6 +34,7 @@ exports.handler = async function (event: SQSEvent) {
     };
 
     await sns.publish(SNSParams).promise();
+    console.log("Message published to SNS topic", SNSParams);
 
     return buildResponse(200, "message is delivered");
   } catch (err: any) {

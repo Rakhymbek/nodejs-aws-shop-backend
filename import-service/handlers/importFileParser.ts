@@ -15,7 +15,7 @@ exports.handler = async function (event: S3Event): Promise<void> {
       })
       .createReadStream();
 
-    // console.log(`File is processing from: ${record.s3.object.key}`);
+    console.log(`File is processing from: ${record.s3.object.key}`);
 
     await processReadableStream(s3ReadableStream, record);
   }
@@ -30,7 +30,7 @@ function sendMessageToSQS(data: any) {
     if (err) {
       console.error("Error while sending the message", err);
     } else {
-      // console.log("Message sent successfully", data.MessageId);
+      console.log("Message sent successfully", data.MessageId);
     }
   });
 }

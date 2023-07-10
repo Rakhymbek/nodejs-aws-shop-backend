@@ -1,6 +1,6 @@
 import PostgresDB from "../db";
 import { IProduct } from "../models/product";
-import { productSchema, stockSchema } from "../mocks/productsData";
+import { v4 as uuidv4 } from "uuid";
 
 async function getAllProducts() {
   return PostgresDB.select("products.*", "stocks.count")
@@ -16,26 +16,28 @@ async function getProductById(productId: string) {
     .first();
 }
 
-async function createProduct(productData: IProduct, count: number) {
-  const validatedProductData = await productSchema.validate(productData);
-  const validatedStockData = await stockSchema.validate({ count });
+async function createProductInTable(productData: IProduct, count: number) {
+  const newProduct = {
+    id: uuidv4(),
+    ...productData,
+  };
 
-  const newProduct = { ...validatedProductData };
+  const newProductStock = {
+    product_id: newProduct.id,
+    count,
+  };
 
-  await PostgresDB.transaction(async (trx) => {
-    const [insertedProduct] = await trx("products")
-      .insert(newProduct)
-      .returning("*");
+  try {
+    await PostgresDB.transaction(async (trx) => {
+      await trx("products").insert(newProduct);
+      await trx("stocks").insert(newProductStock);
+    });
 
-    const newProductStock = {
-      product_id: insertedProduct.id,
-      count: validatedStockData.count,
-    };
-
-    await trx("stocks").insert(newProductStock);
-  });
-
-  return { ...newProduct, count: validatedStockData.count };
+    return { ...newProduct, count: newProductStock.count };
+  } catch (error: any) {
+    console.error("Error occurred during inserting a product: ", error.message);
+    throw error;
+  }
 }
 
-export { getAllProducts, getProductById, createProduct };
+export { getAllProducts, getProductById, createProductInTable };
