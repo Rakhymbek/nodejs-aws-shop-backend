@@ -31,3 +31,9 @@ dist-ssr
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+.ebextensions

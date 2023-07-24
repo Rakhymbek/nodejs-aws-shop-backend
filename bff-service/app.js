@@ -36,7 +36,7 @@ app.all("/:service*", async (req, res, next) => {
         "content-type": contentType,
       },
       method: req.method,
-      data: req.body,
+      ...(Object.keys(req.body || {}).length > 0 && { data: req.body }),
       // httpsAgent: new Agent({
       //   rejectUnauthorized: false,
       // }),
